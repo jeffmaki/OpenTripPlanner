@@ -61,6 +61,8 @@ public class PlainStreetEdge extends StreetEdge implements Cloneable {
 
     private String name;
 
+    private boolean hasSidewalkShed = false;
+    
     private boolean wheelchairAccessible = true;
 
     private StreetTraversalPermission permission;
@@ -134,6 +136,10 @@ public class PlainStreetEdge extends StreetEdge implements Cloneable {
         }
     }
 
+    public void setHasSidewalkShed(boolean hasShed) {
+    	hasSidewalkShed = hasShed;
+    }
+    
     @Override
     public boolean canTraverse(RoutingRequest options) {
         if (options.wheelchairAccessible) {
@@ -310,6 +316,13 @@ public class PlainStreetEdge extends StreetEdge implements Cloneable {
             }
             time += turnTime;
         }
+
+        if(hasSidewalkShed) {
+        	weight = weight * .5;
+        } else {        	
+            weight = weight * (1/.5); 
+        }
+        
         s1.incrementWalkDistance(length);
         int timeLong = (int) time;
         if (timeLong != time) {
@@ -322,6 +335,8 @@ public class PlainStreetEdge extends StreetEdge implements Cloneable {
         
         s1.addAlerts(notes);
 
+        System.out.println(this.name + " back=" + back + "=> weight=" + weight);
+        
         return s1.makeState();
     }
 
