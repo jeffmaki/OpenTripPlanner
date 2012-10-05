@@ -335,8 +335,6 @@ public class PlainStreetEdge extends StreetEdge implements Cloneable {
         
         s1.addAlerts(notes);
 
-        System.out.println(this.name + " back=" + back + "=> weight=" + weight);
-        
         return s1.makeState();
     }
 

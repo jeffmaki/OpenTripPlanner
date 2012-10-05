@@ -15,7 +15,6 @@ package org.opentripplanner.api.ws;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
-import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.ArrayList;
@@ -35,7 +34,6 @@ import org.opentripplanner.routing.edgetype.PlainStreetEdge;
 import org.opentripplanner.routing.graph.Edge;
 import org.opentripplanner.routing.graph.Vertex;
 import org.opentripplanner.routing.services.GraphService;
-import org.springframework.asm.Type;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import com.google.gson.Gson;
@@ -54,26 +52,10 @@ public class Sheds {
     @Autowired 
     GraphService _graphService;
 	
-    private class Shed {
-    	public String id;
-    	public String first_name;
-    	public String last_name;
-    	public String permit_type;
-    	public String permit_subtype;
-    	public String issue_date;
-    	public String expiration_date;
-    	public String bin;
-    	public Double lat;
-    	public Double lon;
-    	public String house_number;
-    	public String street;
-    	public String borough;
-    }
-    
     @GET
     @Path("/load")
     public String load() throws JSONException, URISyntaxException, ClientProtocolException, IOException {
-    	URL url = new URL("http://www.jeffmaki.com/nychacks/sheds.php");
+    	URL url = new URL("http://walk-shed.jeffmaki.com/sheds.php");
     	
     	DefaultHttpClient client = new DefaultHttpClient();
         HttpGet request = new HttpGet(url.toURI());
@@ -89,7 +71,6 @@ public class Sheds {
         
         return "OK";
     }
-
     
     @GET
     @Path("/clear")
@@ -144,6 +125,12 @@ public class Sheds {
     	}
     	
     	return "OK " + i;
+    }
+        
+    private class Shed {
+    	public Double lat;
+
+    	public Double lon;
     }
     
 }
