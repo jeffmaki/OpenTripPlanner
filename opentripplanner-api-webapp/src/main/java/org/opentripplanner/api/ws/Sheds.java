@@ -18,6 +18,7 @@ import java.io.Reader;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 import javax.ws.rs.GET;
@@ -34,12 +35,14 @@ import org.opentripplanner.routing.edgetype.PlainStreetEdge;
 import org.opentripplanner.routing.graph.Edge;
 import org.opentripplanner.routing.graph.Vertex;
 import org.opentripplanner.routing.services.GraphService;
+import org.opentripplanner.routing.services.StreetVertexIndexService;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import com.sun.jersey.api.spring.Autowire;
 import com.vividsolutions.jts.geom.Coordinate;
+import com.vividsolutions.jts.geom.Envelope;
 import com.vividsolutions.jts.geom.Geometry;
 import com.vividsolutions.jts.geom.GeometryFactory;
 import com.vividsolutions.jts.geom.LineString;
@@ -94,13 +97,17 @@ public class Sheds {
     @GET
     @Path("/add")
     public String add(@QueryParam("lat") double lat, @QueryParam("lon") double lon) throws JSONException {
+    	StreetVertexIndexService svis = _graphService.getGraph().streetIndex;
     	GeometryFactory geomFactory = new GeometryFactory();
 
     	Coordinate targetCoordinate = new Coordinate(lon, lat);
     	Geometry targetGeometry = geomFactory.createPoint(targetCoordinate).buffer(.0002);
     	
+    	Envelope searchEnvelope = targetGeometry.buffer(.05).getEnvelopeInternal();    	
+       	Collection<Vertex> vertices = svis.getVerticesForEnvelope(searchEnvelope);
+    	
     	Integer i = 0;
-    	for(Vertex v : _graphService.getGraph().getVertices()) {
+    	for(Vertex v : vertices) {
     		List<Edge> edges = new ArrayList<Edge>();
     		edges.addAll(v.getIncoming());
     		edges.addAll(v.getOutgoing());
