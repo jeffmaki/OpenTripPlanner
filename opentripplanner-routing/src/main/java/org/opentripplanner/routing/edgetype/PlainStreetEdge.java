@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -24,6 +25,7 @@ import org.opentripplanner.common.TurnRestriction;
 import org.opentripplanner.common.TurnRestrictionType;
 import org.opentripplanner.common.geometry.DirectionUtils;
 import org.opentripplanner.common.geometry.PackedCoordinateSequence;
+import org.opentripplanner.model.Shed;
 import org.opentripplanner.routing.core.State;
 import org.opentripplanner.routing.core.StateEditor;
 import org.opentripplanner.routing.core.TraverseMode;
@@ -61,7 +63,7 @@ public class PlainStreetEdge extends StreetEdge implements Cloneable {
 
     private String name;
 
-    private boolean hasSidewalkShed = false;
+    private Set<Shed> sidewalkSheds = null;
     
     private boolean wheelchairAccessible = true;
 
@@ -136,10 +138,35 @@ public class PlainStreetEdge extends StreetEdge implements Cloneable {
         }
     }
 
-    public void setHasSidewalkShed(boolean hasShed) {
-    	hasSidewalkShed = hasShed;
+    public void addSidewalkShed(Shed shed) {
+    	if(sidewalkSheds == null) {
+            sidewalkSheds = new HashSet<Shed>();
+    	}
+    	
+    	if(!sidewalkSheds.contains(shed))
+    		sidewalkSheds.add(shed);
     }
-    
+
+    public void clearSidewalkSheds() {
+    	if(sidewalkSheds != null)
+    		sidewalkSheds.clear();
+    }
+
+    public Set<Shed> getSidewalkSheds() {
+    	if(sidewalkSheds == null) {
+            return new HashSet<Shed>();
+    	}
+
+    	return sidewalkSheds;
+    }
+
+    public boolean hasSidewalkShed() {
+    	if(sidewalkSheds == null)
+    		return false;
+    	
+    	return !sidewalkSheds.isEmpty();
+    }
+
     @Override
     public boolean canTraverse(RoutingRequest options) {
         if (options.wheelchairAccessible) {
@@ -317,7 +344,8 @@ public class PlainStreetEdge extends StreetEdge implements Cloneable {
             time += turnTime;
         }
 
-        if(hasSidewalkShed) {
+        if(hasSidewalkShed()) {
+        	s1.addSidewalkSheds(sidewalkSheds);
         	weight = weight * .5;
         } else {        	
             weight = weight * (1/.5); 

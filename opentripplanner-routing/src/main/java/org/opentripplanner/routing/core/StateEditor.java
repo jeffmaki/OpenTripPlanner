@@ -15,11 +15,12 @@ package org.opentripplanner.routing.core;
 
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.Set;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.onebusaway.gtfs.model.AgencyAndId;
+import org.opentripplanner.model.Shed;
 import org.opentripplanner.routing.automata.AutomatonState;
 import org.opentripplanner.routing.edgetype.TripPattern;
 import org.opentripplanner.routing.graph.Edge;
@@ -538,6 +539,10 @@ public class StateEditor {
         return accept;
     }
 
+    public void addSidewalkSheds(Set<Shed> sheds) {
+    	child.sidewalkSheds.addAll(sheds);
+    }
+    
     public void alightTransit() {
         cloneStateDataAsNeeded();
         child.stateData.lastTransitWalk = child.getWalkDistance();

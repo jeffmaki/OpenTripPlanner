@@ -33,6 +33,7 @@ import org.opentripplanner.common.geometry.DirectionUtils;
 import org.opentripplanner.common.geometry.GeometryUtils;
 import org.opentripplanner.common.geometry.PackedCoordinateSequence;
 import org.opentripplanner.common.model.P2;
+import org.opentripplanner.model.Shed;
 import org.opentripplanner.routing.core.RoutingContext;
 import org.opentripplanner.routing.core.RoutingRequest;
 import org.opentripplanner.routing.core.State;
@@ -71,6 +72,7 @@ import org.springframework.stereotype.Service;
 
 import com.vividsolutions.jts.geom.Coordinate;
 import com.vividsolutions.jts.geom.Geometry;
+import com.vividsolutions.jts.geom.GeometryFactory;
 
 @Service @Scope("singleton")
 public class PlanGenerator {
@@ -521,6 +523,18 @@ public class PlanGenerator {
         leg.endTime = makeCalendar(state.getBackState());
         Geometry geometry = GeometryUtils.getGeometryFactory().createLineString(coordinates);
         leg.legGeometry = PolylineEncoder.createEncodings(geometry);
+        
+        leg.sidewalkSheds = new ArrayList<Shed>();
+        
+        GeometryFactory geomFactory = new GeometryFactory();
+        Geometry bufferedLine = geometry.buffer(.0002);
+        
+        for(Shed shed : state.getSidewalkSheds()) {
+        	Geometry shedGeometry = geomFactory.createPoint(shed.getLocationAsCoordinate());
+        	if(bufferedLine.contains(shedGeometry))
+        		leg.sidewalkSheds.add(shed);
+        }
+        
         Edge backEdge = state.getBackEdge();
         String name;
         if (backEdge instanceof StreetEdge) {

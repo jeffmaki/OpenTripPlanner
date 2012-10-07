@@ -13,12 +13,15 @@
 
 package org.opentripplanner.routing.core;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.List;
 import java.util.Set;
 
 import org.onebusaway.gtfs.model.AgencyAndId;
 import org.onebusaway.gtfs.model.Trip;
+import org.opentripplanner.model.Shed;
 import org.opentripplanner.routing.algorithm.NegativeWeightException;
 import org.opentripplanner.routing.automata.AutomatonState;
 import org.opentripplanner.routing.edgetype.OnBoardForwardEdge;
@@ -51,6 +54,8 @@ public class State implements Cloneable {
 
     protected Edge backEdge;
 
+    protected List<Shed> sidewalkSheds;
+    
     // allow traverse result chaining (multiple results)
     protected State next;
 
@@ -90,6 +95,7 @@ public class State implements Cloneable {
      */
     public State(Vertex vertex, long time, RoutingRequest options) {
         this.weight = 0;
+        this.sidewalkSheds = new ArrayList<Shed>();
         this.vertex = vertex;
         this.backState = null;
         this.backEdge = null;
@@ -207,6 +213,10 @@ public class State implements Cloneable {
 
     public int getNumBoardings() {
         return stateData.numBoardings;
+    }    
+    
+    public List<Shed> getSidewalkSheds() {
+        return sidewalkSheds;
     }
 
     public boolean isAlightedLocal() {
@@ -623,6 +633,13 @@ public class State implements Cloneable {
                 editor.incrementTimeInSeconds(orig.getAbsTimeDeltaSec());
                 editor.incrementWeight(orig.getWeightDelta());
                 editor.incrementWalkDistance(orig.getWalkDistanceDelta());
+
+                if (edge instanceof PlainStreetEdge) {
+                	PlainStreetEdge pse = ((PlainStreetEdge)edge);
+                	if(pse.hasSidewalkShed()) {
+                		editor.addSidewalkSheds(pse.getSidewalkSheds());                
+                	}
+                }
                 
                 // propagate the modes and alerts through to the reversed edge
                 editor.setBackMode(orig.getBackMode());

@@ -31,6 +31,7 @@ import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.codehaus.jettison.json.JSONException;
+import org.opentripplanner.model.Shed;
 import org.opentripplanner.routing.edgetype.PlainStreetEdge;
 import org.opentripplanner.routing.graph.Edge;
 import org.opentripplanner.routing.graph.Vertex;
@@ -38,8 +39,10 @@ import org.opentripplanner.routing.services.GraphService;
 import org.opentripplanner.routing.services.StreetVertexIndexService;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.sun.jersey.api.spring.Autowire;
 import com.vividsolutions.jts.geom.Coordinate;
 import com.vividsolutions.jts.geom.Envelope;
@@ -58,18 +61,19 @@ public class Sheds {
     @GET
     @Path("/load")
     public String load() throws JSONException, URISyntaxException, ClientProtocolException, IOException {
-    	URL url = new URL("http://walk-shed.jeffmaki.com/sheds.php");
+    	URL url = new URL("http://jeffmaki.cartodb.com/api/v2/sql?q=SELECT%20ST_X(the_geom)%20AS%20lon,%20ST_Y(the_geom)%20AS%20lat,%20permit_id,%20house_number%20FROM%20sheds%20WHERE%20now()%20%3E%20issue_date%20AND%20now()%20%3C%20expiration_date");
     	
     	DefaultHttpClient client = new DefaultHttpClient();
         HttpGet request = new HttpGet(url.toURI());
         HttpResponse response = client.execute(request);
         Reader reader = new InputStreamReader(response.getEntity().getContent());
 
-        Gson gson = new Gson();
-        List<Shed> sheds = gson.fromJson(reader, new TypeToken<List<Shed>>(){}.getType());
-
-        for(Shed shed : sheds) {
-            add(shed.lat, shed.lon);
+        JsonObject cartoDB = new JsonParser().parse(reader).getAsJsonObject();
+        JsonArray rows = cartoDB.get("rows").getAsJsonArray();
+        
+        for(JsonElement _row : rows) {
+        	JsonObject row = _row.getAsJsonObject();
+        	add(row.get("lat").getAsDouble(), row.get("lon").getAsDouble(), row.get("permit_id").getAsString(), row.get("house_number").getAsString());
         }
         
         return "OK";
@@ -86,7 +90,7 @@ public class Sheds {
     		for(Edge e : edges) {
     			if(e instanceof PlainStreetEdge) {
     				PlainStreetEdge pse = (PlainStreetEdge)e;
-    				pse.setHasSidewalkShed(false);
+    				pse.clearSidewalkSheds();
     			}
     		}
     	}
@@ -96,7 +100,7 @@ public class Sheds {
 
     @GET
     @Path("/add")
-    public String add(@QueryParam("lat") double lat, @QueryParam("lon") double lon) throws JSONException {
+    public String add(@QueryParam("lat") double lat, @QueryParam("lon") double lon, @QueryParam("permit_id") String permit_id, @QueryParam("house_number") String house_number) throws JSONException {
     	StreetVertexIndexService svis = _graphService.getGraph().streetIndex;
     	GeometryFactory geomFactory = new GeometryFactory();
 
@@ -122,7 +126,17 @@ public class Sheds {
     				
     				if(lineGeometry.intersects(targetGeometry)) {
     					PlainStreetEdge pse = (PlainStreetEdge)e;
-        				pse.setHasSidewalkShed(true);
+    					
+    					Shed newShed = new Shed();
+    					newShed.lat = lat;
+    					newShed.lon = lon;
+    					newShed.permit_id = permit_id;
+    					try {
+    						newShed.evenSide = (Integer.parseInt(house_number) % 2) == 0;
+    					} catch(Exception ex) {
+    						newShed.evenSide = null;
+    					}
+        				pse.addSidewalkShed(newShed);
     					
         				System.out.println("Set sidewalkshed=true on edge, name=" + e.getName());
         				i++;
@@ -133,11 +147,5 @@ public class Sheds {
     	
     	return "OK " + i;
     }
-        
-    private class Shed {
-    	public Double lat;
 
-    	public Double lon;
-    }
-    
 }

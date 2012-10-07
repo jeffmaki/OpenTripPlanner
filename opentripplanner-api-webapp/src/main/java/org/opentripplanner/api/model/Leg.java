@@ -18,13 +18,13 @@ import java.util.Calendar;
 import java.util.List;
 import java.util.TimeZone;
 
-import org.opentripplanner.routing.core.TraverseMode;
-import org.opentripplanner.routing.patch.Alert;
-
 import javax.xml.bind.annotation.XmlAttribute;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlElementWrapper;
 
+import org.opentripplanner.model.Shed;
+import org.opentripplanner.routing.core.TraverseMode;
+import org.opentripplanner.routing.patch.Alert;
 import org.opentripplanner.util.model.EncodedPolylineBean;
 
 /**
@@ -176,6 +176,8 @@ public class Leg {
 
     @XmlAttribute
     public Boolean rentedBike;
+
+    public List<Shed> sidewalkSheds;
 
     /**
      * bogus walk/bike/car legs are those that have 0.0 distance, 
