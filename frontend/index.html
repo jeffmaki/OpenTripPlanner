@@ -1,0 +1,301 @@
+<html>
+<head>
+	<meta content="text/html;charset=utf-8" http-equiv="Content-Type"/>
+ 	<meta name="viewport" content="width=device-width, minimum-scale=1.0, maximum-scale=1.0" />
+
+	<title>walk-shed</title>
+
+	<link rel='stylesheet' href='http://fonts.googleapis.com/css?family=Lato:100' type='text/css'>
+	<link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.4.2/leaflet.css" type='text/css'/>
+	<link rel="stylesheet" href="css/fertigopro_regular_macroman/stylesheet.css" type='text/css'/>
+	<link rel='stylesheet' href='css/screen.css' type='text/css'/>
+
+	<script src="http://cdn.leafletjs.com/leaflet-0.4.2/leaflet.js"></script>
+	<script src="js/Polyline.encoded.js"></script>
+	<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
+
+	<script type="text/javascript">
+		jQuery(document).ready(function() {
+			var map = null;
+			var allShedLayer = null;
+
+			var lines = [];
+			var sheds = [];
+			
+			var fromMarker = null;
+			var toMarker = null;
+			var currentLocationMarker = null;
+
+			function setTo(l, isHash) {
+				if(toMarker === null) {
+					var endIcon = L.icon({ 
+						iconUrl: 'img/marker-flag-end-shadowed.png', 
+						iconSize: [48, 49],
+					    	iconAnchor: [46, 42]
+					});
+
+					toMarker = L.marker(l, { icon: endIcon, draggable: true, zIndexOffset: 1000 }).addTo(map);
+
+					toMarker.on("dragend", function(e) {
+						if(!isHash) {
+							jQuery("#panel p.to input").val("");
+						}
+						planTrip();
+					});
+				} else {
+					toMarker.setLatLng(l);
+					toMarker.update();
+				}
+
+				if(isHash !== true && toMarker !== null && fromMarker !== null) {
+					planTrip();
+				}
+			}
+
+			function setFrom(l, isHash) {
+				if(fromMarker === null) {
+					var startIcon = L.icon({ 
+						iconUrl: 'img/marker-flag-start-shadowed.png', 
+						iconSize: [48, 49],
+				    		iconAnchor: [46, 42]
+					});
+	
+					fromMarker = L.marker(l, { icon: startIcon, draggable: true, zIndexOffset: 1000 }).addTo(map);
+	
+					fromMarker.on("dragend", function(e) {
+						if(!isHash) {
+							jQuery("#panel p.from input").val("");
+						}
+						planTrip();
+					});
+				} else {
+					fromMarker.setLatLng(l);
+					fromMarker.update();
+				}
+
+				if(isHash !== true && toMarker !== null && fromMarker !== null) {
+					planTrip();
+				}
+			}
+			
+			function planTrip() {
+				if(toMarker === null || fromMarker === null) {
+					return;
+				}
+
+				jQuery.ajax({
+					url: "http://walk-shed.jeffmaki.com:8080/opentripplanner-api-webapp/ws/plan",
+					dataType: "jsonp",
+					data: {
+						mode: "WALK",
+						toPlace: toMarker.getLatLng().lat + "," + toMarker.getLatLng().lng,
+						fromPlace: fromMarker.getLatLng().lat + "," + fromMarker.getLatLng().lng
+					},
+					success: function(d) {
+						jQuery.each(lines, function(i, line) {
+							map.removeLayer(line);
+						});
+
+						var encoded = d.plan.itineraries[0].legs[0].legGeometry.points;
+						var polyline = L.Polyline.fromEncoded(encoded).addTo(map);						
+						lines.push(polyline);
+
+						jQuery.each(sheds, function(i, shed) {
+							map.removeLayer(shed);
+						});
+
+						var shedIcon = L.icon({ 
+							iconUrl: 'img/shed-icon.png', 
+							iconSize: [15, 16],
+						});
+
+						jQuery.each(d.plan.itineraries[0].legs[0].sidewalkSheds, function(i, shed) {
+							var shedMarker = L.marker([shed.lat, shed.lon], { icon: shedIcon }).addTo(map);
+
+							var popupText = (shed.evenSide ? "Even" : "Odd") + " side of the street. <br/>Permit <a href='http://a810-bisweb.nyc.gov/bisweb/PermitQueryByNumberServlet?passjobnumber=" + shed.permit_id + "' target='_new'>" + shed.permit_id + "</a>";
+							shedMarker.bindPopup(popupText);
+
+							sheds.push(shedMarker);
+						});
+
+						map.fitBounds(polyline.getBounds().pad(.05));
+					}
+				});
+			}
+
+			map = L.map('map', { scrollWheelZoom: false }).setView([40.7190301223, -73.9690589904], 13);
+
+			L.tileLayer('http://{s}.tiles.mapbox.com/v3/jeffmaki.map-oxgs6i4b/{z}/{x}/{y}.png', {
+				maxZoom: 15,
+				minZoom: 11,
+				attribution: 'Map tiles from MapBox (<a href="http://mapbox.com/about/maps/">terms</a>) and OpenStreetMap'
+			}).addTo(map);
+
+			// hide show all sheds
+			jQuery("#showAll").click(function(e) {
+				e.preventDefault();
+
+				var link = jQuery(this);
+
+				if(allShedLayer === null) {
+					allShedLayer = L.tileLayer('https://jeffmaki.cartodb.com/tiles/sheds/{z}/{x}/{y}.png?sql=SELECT * FROM sheds WHERE now() > issue_date AND now() < expiration_date', {
+						maxZoom: 15,
+						minZoom: 11,
+						attribution: 'shed overlay tiles rendered by CartoDB'
+					}).addTo(map);
+
+					link.text("hide on map");
+				} else {
+					map.removeLayer(allShedLayer);
+					allShedLayer = null;
+
+					link.text("show on map");
+				}
+			});		
+
+			// to/from boxes
+			var inputBoxUpdateFn = function(e, field) {
+				var form = jQuery(this);
+				if(typeof field !== 'undefined') {
+					form = jQuery(field);
+				}
+
+				if(form.val() === "Current Location" || form.val() === "") {
+					return;
+				}
+
+				jQuery.ajax({
+					url: "geocoder.php",
+					dataType: "json",
+					data: {
+						q: form.val()
+					},
+					success: function(l) {
+						if(l === null) {
+							form.addClass("error");
+							return;
+						} else {
+							form.removeClass("error");
+						}
+
+						if(form.hasClass("to")) {
+							setTo([l.latitude,l.longitude], false);
+						} else if(form.hasClass("from")) {
+							setFrom([l.latitude,l.longitude], false);
+						}
+					}
+				});
+			};
+
+			jQuery("#panel p input").val("").blur(inputBoxUpdateFn);
+
+			jQuery("#panel p input").keypress(function(e) {
+  				if(e.which == 13) {
+					inputBoxUpdateFn(e, this);
+				}
+			});
+
+			// location awareness
+			var firstTime = true;
+			var updateThread = null;
+
+			var updateFunction = function() {
+				navigator.geolocation.getCurrentPosition(function(location) {
+					if(firstTime === true) {
+						var currentLocationIcon = L.icon({ 
+							iconUrl: 'img/blue_dot_circle.png', 
+							iconSize: [38, 38]
+						});
+
+						currentLocationMarker = 
+							L.marker([location.coords.latitude,location.coords.longitude], { icon: currentLocationIcon, clickable: false, draggable: false }).addTo(map);
+
+						map.panTo([location.coords.latitude,location.coords.longitude]);
+						map.setZoom(15);
+
+						setFrom([location.coords.latitude,location.coords.longitude]);
+	
+						jQuery("#panel p.from input").val("Current Location");
+
+						// setup call back to keep updating
+						updateThread = setInterval(updateFunction, 10000);
+					} else {
+						if(currentLocationMarker !== null) {
+							currentLocationMarker.setLatLng([location.coords.latitude,location.coords.longitude]);
+							currentLocationMarker.update();
+						}
+					}
+
+					firstTime = false;
+				}, function() {
+					if(currentLocationMarker !== null) {
+						map.removeLayer(currentLocationMarker);
+						currentLocationMarker = null;
+					}
+
+					if(updateThread !== null) {
+						clearInterval(updateThread);
+					}
+				});
+			};
+			updateFunction();
+	
+		}); // document.ready
+
+	</script>
+</head>
+<body>
+	<div id="container">
+		<div id="header">
+			<h1>walk-shed</h1>
+		</div>
+
+		<form id="panel">
+			<p class="from">
+				<span class="label">From</span>
+				<input type="textbox" name="from" class="from" value=""/>	
+			</p>
+			<p class="to">	
+				<span class="label">To</span>
+				<input type="textbox" name="to" class="to" value=""/>	
+			</p>
+		</form>
+
+		<div id="map"></div>
+
+		<div id="about">
+			<div class="image">
+				<img src="img/shed-diagram.jpg"/>
+			</div>
+
+			<div class="content">
+				<p>
+					walk-shed (re)imagines New York City's sidewalk shed deployments (<a href="#" id="showAll">show on map</a>) as one integrated system to protect pedestrians from the elements: sun, rain, snow or (as originally imagined) falling bricks.
+				</p>
+				<p>
+					Set your start and ending locations, and walk-shed plans a path through as many sidewalk sheds as possible, while not taking you (too far) out of your way. 
+				</p>
+			</div>
+			<p class="clearfix"></p>
+		</div>
+		
+		<div id="footer">
+			<img id="lego" src="img/lego.jpg"/>
+
+			<p>walk-shed is a project of <a href="http://www.jeffmaki.com">Jeff Maki</a>. Routing by (a modified version of) <a href="http://www.opentripplanner.org">OpenTripPlanner</a> from <a href="http://www.openplans.org">OpenPlans</a>. <br/>Basemap tiles from <a href="http://www.mapbox.com">MapBox</a>. Custom sidewalk shed layer tiles generated with <a href="http://www.cartodb.com">CartoDB</a>. Made in NYC.
+			<p class="clearfix"></p>
+		</div>
+	</div>
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-16762334-6', 'jeffmaki.com');
+  ga('send', 'pageview');
+
+</script>
+</body>
+</html>

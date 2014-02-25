@@ -1,0 +1,147 @@
+#!/usr/bin/php -q
+<?php
+include("bin2latlon.php");
+
+$month = 1;
+$year = 2012;
+
+$i = 0;
+while(true) {
+	$url = "http://a810-bisweb.nyc.gov/bisweb/WorkPermitByIssueDateServlet?";
+	$url .= "allstartdate_month=" . str_pad($month, 2, "0", STR_PAD_LEFT) . "&";
+	$url .= "allstartdate_day=1&";
+	$url .= "allstartdate_year=" . $year . "&";
+	$url .= "allenddate_month=" . str_pad($month, 2, "0", STR_PAD_LEFT) . "&";
+	$url .= "allenddate_day=" . cal_days_in_month(CAL_GREGORIAN, $month, $year) . "&";
+	$url .= "allenddate_year=" . $year . "&";
+	$url .= "allpermittype=EQ&";
+	$url .= "allcount=" . str_pad($i * 30, 4, "0", STR_PAD_LEFT) . "&";
+	$url .= "requestid=0";
+
+	$ch = curl_init(); 
+	curl_setopt($ch, CURLOPT_URL, $url); 
+	curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1');            
+	curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE); 
+	$body = curl_exec($ch); 
+	curl_close($ch); 
+
+	$start_pos = strpos($body, "BxsnepbArray ::  ARRAY[16 * 30]");
+	$end_pos = strpos($body, "-->", $start_pos);
+	$guts = substr($body, $start_pos, $end_pos - $start_pos);
+
+	$fetched = 0;
+	$lines = split("\n|\r", $guts);
+	$row = null;
+	foreach($lines as $line) {
+		$cleaned = str_replace(array("[", "]"), "", $line);
+	
+		if(is_numeric($cleaned)) {
+			if($row != null)
+				process_row($row);
+
+			$row = array();
+
+			if(intval($cleaned) > $fetched) {
+				$fetched = intval($cleaned);
+			}
+		} else {
+			$cleaned_parts = split("\{", $cleaned);
+
+			if(count($cleaned_parts) < 2)
+				continue;
+			
+			$label_parts = split(":", trim($cleaned_parts[0]));
+
+			if(count($label_parts) != 2)
+				continue;
+			
+			$label = $label_parts[1];
+			$value = trim($cleaned_parts[1], ' }]');
+
+			$row[$label] = $value;
+		}
+	}
+
+	echo "Fetched page " . $i . ".\n";
+	echo "Got " . $fetched . " things\n";
+
+	if($fetched < 30) {
+		echo "Done!\n";
+		break;
+	}
+	
+	$i++;
+	
+	sleep(rand(0, 1) * 30);
+}
+
+
+
+
+
+function process_row($row) {
+	if($row['PtPermitSubtype'] != "SH")
+		return;
+
+	$id = $row['PtJobNum'] . "-" . $row['PtJobDocNum'] . "-" . $row['PtPermitType'] . "-" . $row['PtPermitSubtype'] . "-" . $row['PtPermitSeqNum'];
+
+
+        $url = "http://jeffmaki.cartodb.com/api/v2/sql?q=" . urlencode("SELECT COUNT(*) FROM sheds WHERE permit_id='" . $id . "'");
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1');
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
+        $response = json_decode(curl_exec($ch));
+        curl_close($ch);
+
+        if($response->rows[0]->count != 0) {
+                echo "Permit $id already in DB. Skipping...\n";
+                return;
+        }
+
+
+	$boro = null;
+	switch(substr($row['PtBin'], 0, 1)) {
+		case 1:
+			$boro = "Manhattan";
+			break;
+		case 2:
+			$boro = "Bronx";
+			break;
+		case 3:
+			$boro = "Brooklyn";
+			break;
+		case 4:
+			$boro = "Queens";
+			break;
+		case 5:
+			$boro = "Staten Island";
+			break;
+	}
+	
+	$latlong_parts = addr2latlon($row['JHouseNumber'], $row['JStreetName'], $boro);
+//	$latlong_parts = bin2latlon($row['PtBin']);
+	$lat = $latlong_parts[1];
+	$lon = $latlong_parts[0];
+	
+
+	$query = "INSERT INTO sheds(permit_id, issue_date, expiration_date, bin, the_geom, house_number, street, borough) VALUES (";
+	$query .= "'" . $id . "',";
+	$query .= "'" . $row['PtIssuanceDate'] . "',";
+	$query .= "'" . $row['PtExpirationDate'] . "',";
+	$query .= "'" . $row['PtBin'] . "',";
+        $query .= "GeomFromText('POINT(" . $lon . " " . $lat . ")', 4326),";
+	$query .= "'" . $row['JHouseNumber'] . "',";
+	$query .= "'" . $row['JStreetName'] . "',";
+	$query .= "'" . $boro . "'";
+	$query .= ")";
+
+        $url = "http://jeffmaki.cartodb.com/api/v2/sql?q=" . urlencode($query) . "&api_key=";
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1');
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
+        $response = curl_exec($ch);
+        curl_close($ch);
+}
+

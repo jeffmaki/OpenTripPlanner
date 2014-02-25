@@ -1,0 +1,136 @@
+body {
+	font-family: 'FertigoProRegular', Helvetica, Arial, sans-serif;
+	font-size: 1em;
+	line-height: 130%;
+	margin: 30px;
+	margin-top: 0px;
+	background-color: #FFFFFF;
+	color: #333;
+}
+
+a, a:visited, a:hover {
+	color: #0071CE;
+}
+
+.clearfix {
+	clear: both;
+}
+
+#container {
+	max-width: 700px;
+}
+
+#header {
+	color: #666666;
+	padding: 3px;
+	padding-top: 10px;
+	padding-bottom: 10px;
+}
+
+#header h1 {
+	font-family: 'Lato', Helvetica, Arial, sans-serif;
+	font-weight: 100;
+	font-size: 380%;
+	line-height: 85%;
+	padding: 0px;
+	margin: 0px;
+}
+
+#about {
+	padding: 20px;
+	padding-top: 50px;
+}
+
+#about .image {
+	width: 40%;
+	float: left;
+	text-align: center;
+}
+
+#about .content {
+	float: left;
+	width: 55%;
+}
+
+#about .content p {
+	padding: 0px;
+	margin: 0px;
+	margin-bottom: 15px;
+}
+
+#panel {
+	width: 100%;
+}
+
+#panel p {
+	margin: 0px;
+	padding: 0px;
+	width: 40%;
+	height: 45px;
+	margin-right: 10px;
+	margin-bottom: 10px;
+	float: left;
+}
+
+#panel p .label {
+	font-family: 'FertigoProRegular', Helvetica, Arial, sans-serif;
+	text-transform: uppercase;
+	font-size: 10px;
+	line-height: 110%;
+}
+
+#panel p input {
+	font-family: "Helvetica", Arial, sans-serif;
+	font-size: 20px;
+	width: 100%;
+	background-color: #F1F1F1;
+	border: none;
+	padding: 5px;
+	line-height: 100%;
+}
+
+#panel p input.error {
+	background-color: #FFDDDC;
+}
+
+#map {
+	width: 100%;
+	height: 500px;
+	clear: both;
+}
+
+#footer {
+	margin-top: 150px;
+	line-height: 100%;
+}
+
+#footer img {
+	width: 50px;
+	float: left;
+	position: absmiddle;
+}
+
+#footer p {
+	font-size: 75%;
+	margin-left: 75px;
+}
+
+@media screen and (max-device-width: 480px){
+	body {
+		margin: 20px;
+	}
+
+	#panel p {
+		float: none;
+		width: 100%;
+	}
+
+	#about .image, #about .content {
+		float: none;
+		width: 100%;
+	}
+
+	#about .image {
+		padding-bottom: 5%;
+	}
+}
