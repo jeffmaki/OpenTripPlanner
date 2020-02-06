@@ -13,6 +13,6 @@ Glad you asked! See [The New York Times](https://www.nytimes.com/2018/06/14/real
 
 * frontend - A JavaScript front-end for the engine that allows a user to request a trip between two points. Uses the Yahoo! geocoder, which in 2020, I believe is dead. YMMV. 
 
-*loader - A PHP backend script to scrape the New York City OpenData portal for records of sidewalk sheds and load them into the graph used by OTP. This happens via a REST API--see the source for details.
+* loader - A PHP backend script to scrape the New York City OpenData portal for records of sidewalk sheds and load them into the graph used by OTP. This happens via a REST API--see the source for details.
 
 If anybody wants to resurrect this idea, I'm happy to provide support via E-mail. Reach out! 
